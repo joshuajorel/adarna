@@ -78,9 +78,6 @@ JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_threader
 	ASensorEvent magEvent;
 	ASensorEvent barEvent;
 
-
-
-
 	acc_data = malloc(1000);
 	gyr_data = malloc(1000);
 	mag_data = malloc(1000);
@@ -141,21 +138,16 @@ JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_threader
 	barSensor = ASensorManager_getDefaultSensor(barSensorManager, 6);
 
 	accQueue = ASensorManager_createEventQueue(accSensorManager, accLooper, 3, get_acc_events, acc_data);
-/*
 	gyrQueue = ASensorManager_createEventQueue(gyrSensorManager, gyrLooper, 3, get_gyr_events, gyr_data);
 	magQueue = ASensorManager_createEventQueue(magSensorManager, magLooper, 3, get_mag_events, mag_data);
 	barQueue = ASensorManager_createEventQueue(barSensorManager, barLooper, 3, get_bar_events, bar_data);
-*/
 
 	ASensorEventQueue_enableSensor(accQueue, accSensor);
-/*
 	ASensorEventQueue_enableSensor(gyrQueue, gyrSensor);
 	ASensorEventQueue_enableSensor(magQueue, magSensor);
 	ASensorEventQueue_enableSensor(barQueue, barSensor);
-*/
 
 	int a = ASensor_getMinDelay(accSensor);
-/*
 	int b = ASensor_getMinDelay(gyrSensor);
 	int c = ASensor_getMinDelay(magSensor);
 	int d = ASensor_getMinDelay(barSensor);
@@ -164,14 +156,12 @@ JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_threader
 	LOGI("min-delay: %d", b);
 	LOGI("min-delay: %d", c);
 	LOGI("min-delay: %d", d);
-*/
+
 
 	ASensorEventQueue_setEventRate(accQueue, accSensor, (1000L/ACC_SAMP_FREQ)*1000);
-/*
 	ASensorEventQueue_setEventRate(gyrQueue, gyrSensor, (1000L/GYR_SAMP_FREQ)*1000);
 	ASensorEventQueue_setEventRate(magQueue, magSensor, (1000L/MAG_SAMP_FREQ)*1000);
 	ASensorEventQueue_setEventRate(barQueue, barSensor, (1000L/BAR_SAMP_FREQ)*1000);
-*/
 
 	LOGI("sensorValue() - Start");
 
@@ -195,16 +185,14 @@ static int get_acc_events(int fd, int events, void* data){
 			LOGI("ACC SAMPLING FINISHED");
 			fclose(accF);
 			accFlag = 1;
+			ASensorEventQueue_disableSensor(accQueue, accSensor);
+			LOGI("Disabled Acc Sensor");
 			ASensorManager_destroyEventQueue(accSensorManager, accQueue);
 			LOGI("Freed acc manager");
 			ALooper_release(accLooper);
 			LOGI("Freed acc looper");
 			free(acc_data);
 			LOGI("Freed acc data");
-//			ASensorEventQueue_disableSensor(accQueue, accSensor);
-//			LOGI("Disabled Acc Sensor");
-
-
 		}
 	}
 	return 1;
@@ -224,14 +212,15 @@ static int get_gyr_events(int fd, int events, void* data){
 			LOGI("GYR SAMPLING FINISHED");
 			fclose(gyrF);
 			gyrFlag = 1;
-			/*ASensorEventQueue_disableSensor(gyrQueue, gyrSensor);
+			ASensorEventQueue_disableSensor(gyrQueue, gyrSensor);
 			LOGI("Disabled gyr Sensor");
 			ASensorManager_destroyEventQueue(gyrSensorManager, gyrQueue);
 			LOGI("Freed gyr manager");
+			ALooper_release(gyrLooper);
+			LOGI("Freed gyr looper");
 			free(gyr_data);
-			LOGI("Freed gyr data");*/
+			LOGI("Freed gyr data");
 		}
-
 	}
 	return 1;
 }
@@ -250,14 +239,15 @@ static int get_mag_events(int fd, int events, void* data){
 			LOGI("MAG SAMPLING FINISHED");
 			fclose(magF);
 			magFlag = 1;
-			/*ASensorEventQueue_disableSensor(magQueue, magSensor);
-			LOGI("Disabled mag Sensor");
-			ASensorManager_destroyEventQueue(magSensorManager, magQueue);
-			LOGI("Freed mag manager");
-			free(mag_data);
-			LOGI("Freed mag data");*/
+//			ASensorEventQueue_disableSensor(magQueue, magSensor);
+//			LOGI("Disabled mag Sensor");
+//			ASensorManager_destroyEventQueue(magSensorManager, magQueue);
+//			LOGI("Freed mag manager");
+//			ALooper_release(magLooper);
+//			LOGI("Freed mag looper");
+//			free(mag_data);
+//			LOGI("Freed mag data");
 		}
-
 	}
 	return 1;
 }
@@ -276,14 +266,15 @@ static int get_bar_events(int fd, int events, void* data){
 			LOGI("BAR SAMPLING FINISHED");
 			fclose(barF);
 			barFlag = 1;
-			/*ASensorEventQueue_disableSensor(barQueue, barSensor);
+			ASensorEventQueue_disableSensor(barQueue, barSensor);
 			LOGI("Disabled bar Sensor");
 			ASensorManager_destroyEventQueue(barSensorManager, barQueue);
 			LOGI("Freed bar manager");
+			ALooper_release(barLooper);
+			LOGI("Freed bar looper");
 			free(bar_data);
-			LOGI("Freed bar data");*/
+			LOGI("Freed bar data");
 		}
-
 	}
 	return 1;
 }
