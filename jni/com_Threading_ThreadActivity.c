@@ -189,8 +189,8 @@ static int get_acc_events(int fd, int events, void* data){
 			LOGI("Disabled Acc Sensor");
 			ASensorManager_destroyEventQueue(accSensorManager, accQueue);
 			LOGI("Freed acc manager");
-			ALooper_release(accLooper);
-			LOGI("Freed acc looper");
+//			ALooper_release(accLooper);
+//			LOGI("Freed acc looper");
 			free(acc_data);
 			LOGI("Freed acc data");
 		}
@@ -216,8 +216,8 @@ static int get_gyr_events(int fd, int events, void* data){
 			LOGI("Disabled gyr Sensor");
 			ASensorManager_destroyEventQueue(gyrSensorManager, gyrQueue);
 			LOGI("Freed gyr manager");
-			ALooper_release(gyrLooper);
-			LOGI("Freed gyr looper");
+//			ALooper_release(gyrLooper);
+//			LOGI("Freed gyr looper");
 			free(gyr_data);
 			LOGI("Freed gyr data");
 		}
@@ -239,14 +239,14 @@ static int get_mag_events(int fd, int events, void* data){
 			LOGI("MAG SAMPLING FINISHED");
 			fclose(magF);
 			magFlag = 1;
-//			ASensorEventQueue_disableSensor(magQueue, magSensor);
-//			LOGI("Disabled mag Sensor");
-//			ASensorManager_destroyEventQueue(magSensorManager, magQueue);
-//			LOGI("Freed mag manager");
+			ASensorEventQueue_disableSensor(magQueue, magSensor);
+			LOGI("Disabled mag Sensor");
+			ASensorManager_destroyEventQueue(magSensorManager, magQueue);
+			LOGI("Freed mag manager");
 //			ALooper_release(magLooper);
 //			LOGI("Freed mag looper");
-//			free(mag_data);
-//			LOGI("Freed mag data");
+			free(mag_data);
+			LOGI("Freed mag data");
 		}
 	}
 	return 1;
@@ -270,8 +270,8 @@ static int get_bar_events(int fd, int events, void* data){
 			LOGI("Disabled bar Sensor");
 			ASensorManager_destroyEventQueue(barSensorManager, barQueue);
 			LOGI("Freed bar manager");
-			ALooper_release(barLooper);
-			LOGI("Freed bar looper");
+//			ALooper_release(barLooper);
+//			LOGI("Freed bar looper");
 			free(bar_data);
 			LOGI("Freed bar data");
 		}
