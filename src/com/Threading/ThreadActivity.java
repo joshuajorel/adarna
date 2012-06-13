@@ -11,6 +11,7 @@ public class ThreadActivity extends Activity {
 	TextView text;
 
 	private static native void threader();
+	//private static native void passGps(int x);
 
 	private static native String goThread();
 
@@ -30,6 +31,10 @@ public class ThreadActivity extends Activity {
 			public void onClick(View v) {
 				text.setText(goThread());
 				threader();
+				/*while(threader() != 1){
+					
+				}
+				text.setText("Sensor Acquisition Complete Bitch");*/
 			}
 		});
 
