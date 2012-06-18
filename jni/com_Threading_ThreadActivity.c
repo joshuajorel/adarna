@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <pthread.h>
 
 #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "TestJNIActivity", __VA_ARGS__))
 #define LOOPER_ID 1
@@ -34,6 +35,8 @@ int accFlag = 0;
 int gyrFlag = 0;
 int magFlag = 0;
 int barFlag = 0;
+
+long timeshit = 0;
 
 void *acc_data;
 void *gyr_data;
@@ -65,14 +68,32 @@ ALooper* gyrLooper;
 ALooper* magLooper;
 ALooper* barLooper;
 
+static pthread_mutex_t mutex;
+
+void *print_message_function();
+
+pthread_t thread;
+int iret;
+
+char *message = "Whatevah, whatevah, I do what I want.";
+
 JNIEXPORT jstring JNICALL Java_com_Threading_ThreadActivity_goThread
   (JNIEnv *env, jclass class){
 	LOGI("Sensor Data Start");
 	return (*env)->NewStringUTF(env, "Acquiring Sensor Data");
 }
 
+
+JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_setGps
+ (JNIEnv *env, jclass class, jlong timeM){
+	pthread_mutex_lock(&mutex);
+			timeshit = timeM;
+		pthread_mutex_unlock(&mutex);
+}
+
 JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_threader
   (JNIEnv *env, jclass class){
+	pthread_create(&thread, NULL, print_message_function, NULL);
 	ASensorEvent accEvent;
 	ASensorEvent gyrEvent;
 	ASensorEvent magEvent;
@@ -168,6 +189,13 @@ JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_threader
 	/*while(!accFlag || !gyrFlag || !magFlag || !barFlag){
 
 	}
+JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_setGps
+ (JNIEnv *env, jclass class, jlong timeM){
+
+	pthread_create(&thread, NULL, print_message_function, (long*) timeM);
+
+
+}
 	return 1;*/
 }
 
@@ -278,3 +306,20 @@ static int get_bar_events(int fd, int events, void* data){
 	}
 	return 1;
 }
+
+void *print_message_function()
+{
+	int ctr = 0;
+
+	while (1){
+
+		pthread_mutex_lock(&mutex);
+		LOGI("call back %d", ctr++);
+		LOGI("%lld", timeshit);
+		pthread_mutex_unlock(&mutex);
+		sleep(4);
+	}
+}
+
+
+
