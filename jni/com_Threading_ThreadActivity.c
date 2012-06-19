@@ -22,6 +22,7 @@ int64_t lastAccTime = 0;
 int64_t lastGyrTime = 0;
 int64_t lastMagTime = 0;
 int64_t lastBarTime = 0;
+int64_t lastGpsTime = 0;
 FILE* accF;
 FILE* gyrF;
 FILE* magF;
@@ -35,8 +36,11 @@ int accFlag = 0;
 int gyrFlag = 0;
 int magFlag = 0;
 int barFlag = 0;
+int stopFlag = 0;
 
-long timeshit = 0;
+double latC = 0;
+double lonC = 0;
+double altC = 0;
 
 void *acc_data;
 void *gyr_data;
@@ -70,10 +74,9 @@ ALooper* barLooper;
 
 static pthread_mutex_t mutex;
 
-void *print_message_function();
+void *input_gps();
 
 pthread_t thread;
-int iret;
 
 char *message = "Whatevah, whatevah, I do what I want.";
 
@@ -83,17 +86,24 @@ JNIEXPORT jstring JNICALL Java_com_Threading_ThreadActivity_goThread
 	return (*env)->NewStringUTF(env, "Acquiring Sensor Data");
 }
 
+JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_stop
+  (JNIEnv *env, jclass class){
+	stopFlag = 1;
+}
 
 JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_setGps
- (JNIEnv *env, jclass class, jlong timeM){
+ (JNIEnv *env, jclass class, jdouble lat, jdouble lon, jdouble alt){
 	pthread_mutex_lock(&mutex);
-			timeshit = timeM;
-		pthread_mutex_unlock(&mutex);
+	//LOGI("GPS Locked on Mother Fucker");
+	latC = lat;
+	lonC = lon;
+	altC = alt;
+	pthread_mutex_unlock(&mutex);
 }
 
 JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_threader
   (JNIEnv *env, jclass class){
-	pthread_create(&thread, NULL, print_message_function, NULL);
+	pthread_create(&thread, NULL, input_gps, NULL);
 	ASensorEvent accEvent;
 	ASensorEvent gyrEvent;
 	ASensorEvent magEvent;
@@ -104,10 +114,12 @@ JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_threader
 	mag_data = malloc(1000);
 	bar_data = malloc(1000);
 
+
 	accF = fopen("/sdcard/acc-samp.csv", "w");
 	gyrF = fopen("/sdcard/gyr-samp.csv", "w");
 	magF = fopen("/sdcard/mag-samp.csv", "w");
 	barF = fopen("/sdcard/bar-samp.csv", "w");
+
 
 	if (accF == NULL) {
 		LOGI(" ERROR : acc does not exist");
@@ -201,88 +213,90 @@ JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_setGps
 
 static int get_acc_events(int fd, int events, void* data){
 	ASensorEvent event;
-	while(ASensorEventQueue_getEvents(accQueue, &event, 1) >0 && (accSampleCount < SAMPLE_LIMIT)){
+	while(ASensorEventQueue_getEvents(accQueue, &event, 1) >0 && !stopFlag){
+		//(accSampleCount < SAMPLE_LIMIT)
 		if(event.type == ASENSOR_TYPE_ACCELEROMETER){
 			//LOGI("[%d][%f][%f][%f][%f]", accSampleCount, ((double)(event.timestamp-lastAccTime))/1000000000.0, event.acceleration.x,event.acceleration.y,event.acceleration.z);
 			fprintf(accF, "%lld; %f; %f; %f; %f;\n", event.timestamp, ((double)(event.timestamp-lastAccTime))/1000000000.0, event.acceleration.azimuth,event.acceleration.pitch,event.acceleration.roll);
+			fclose(accF);
 			lastAccTime = event.timestamp;
 			accSampleCount++;
 		}
+	}
 
-		if(accSampleCount == SAMPLE_LIMIT){
-			LOGI("ACC SAMPLING FINISHED");
-			fclose(accF);
-			accFlag = 1;
-			ASensorEventQueue_disableSensor(accQueue, accSensor);
-			LOGI("Disabled Acc Sensor");
-			ASensorManager_destroyEventQueue(accSensorManager, accQueue);
-			LOGI("Freed acc manager");
+	if(stopFlag){
+		LOGI("ACC SAMPLING FINISHED");
+		accFlag = 1;
+		ASensorEventQueue_disableSensor(accQueue, accSensor);
+		LOGI("Disabled Acc Sensor");
+		ASensorManager_destroyEventQueue(accSensorManager, accQueue);
+		LOGI("Freed acc manager");
 //			ALooper_release(accLooper);
 //			LOGI("Freed acc looper");
-			free(acc_data);
-			LOGI("Freed acc data");
-		}
+		free(acc_data);
+		LOGI("Freed acc data");
 	}
 	return 1;
 }
 
 static int get_gyr_events(int fd, int events, void* data){
 	ASensorEvent event;
-	while(ASensorEventQueue_getEvents(gyrQueue, &event, 1) >0 && (gyrSampleCount < SAMPLE_LIMIT)){
+	while(ASensorEventQueue_getEvents(gyrQueue, &event, 1) >0 && !stopFlag){
 		if(event.type == ASENSOR_TYPE_GYROSCOPE){
 			//LOGI("[%d][%f][%f][%f][%f]", gyrSampleCount, ((double)(event.timestamp-lastGyrTime))/1000000000.0, event.acceleration.x,event.acceleration.y,event.acceleration.z);
 			fprintf(gyrF, "%lld; %f; %f; %f; %f;\n", event.timestamp, ((double)(event.timestamp-lastGyrTime))/1000000000.0, event.acceleration.azimuth,event.acceleration.pitch,event.acceleration.roll);
+			fclose(gyrF);
 			lastGyrTime = event.timestamp;
 			gyrSampleCount++;
 		}
+	}
 
-		if(gyrSampleCount == SAMPLE_LIMIT){
-			LOGI("GYR SAMPLING FINISHED");
-			fclose(gyrF);
-			gyrFlag = 1;
-			ASensorEventQueue_disableSensor(gyrQueue, gyrSensor);
-			LOGI("Disabled gyr Sensor");
-			ASensorManager_destroyEventQueue(gyrSensorManager, gyrQueue);
-			LOGI("Freed gyr manager");
-//			ALooper_release(gyrLooper);
-//			LOGI("Freed gyr looper");
-			free(gyr_data);
-			LOGI("Freed gyr data");
-		}
+	if(stopFlag){
+		LOGI("GYR SAMPLING FINISHED");
+		gyrFlag = 1;
+		ASensorEventQueue_disableSensor(gyrQueue, gyrSensor);
+		LOGI("Disabled gyr Sensor");
+		ASensorManager_destroyEventQueue(gyrSensorManager, gyrQueue);
+		LOGI("Freed gyr manager");
+	//	ALooper_release(gyrLooper);
+	//	LOGI("Freed gyr looper");
+		free(gyr_data);
+		LOGI("Freed gyr data");
 	}
 	return 1;
 }
 
 static int get_mag_events(int fd, int events, void* data){
 	ASensorEvent event;
-	while(ASensorEventQueue_getEvents(magQueue, &event, 1) >0 && (magSampleCount < SAMPLE_LIMIT)){
+	while(ASensorEventQueue_getEvents(magQueue, &event, 1) >0 && !stopFlag){
 		if(event.type == ASENSOR_TYPE_MAGNETIC_FIELD){
 			//LOGI("[%d][%f][%f][%f][%f]", gyrSampleCount, ((double)(event.timestamp-lastGyrTime))/1000000000.0, event.acceleration.x,event.acceleration.y,event.acceleration.z);
 			fprintf(magF, "%lld; %f; %f; %f; %f;\n", event.timestamp, ((double)(event.timestamp-lastMagTime))/1000000000.0, event.magnetic.x,event.magnetic.y,event.magnetic.z);
+			fclose(magF);
 			lastMagTime = event.timestamp;
 			magSampleCount++;
 		}
-
-		if(magSampleCount == SAMPLE_LIMIT){
-			LOGI("MAG SAMPLING FINISHED");
-			fclose(magF);
-			magFlag = 1;
-			ASensorEventQueue_disableSensor(magQueue, magSensor);
-			LOGI("Disabled mag Sensor");
-			ASensorManager_destroyEventQueue(magSensorManager, magQueue);
-			LOGI("Freed mag manager");
-//			ALooper_release(magLooper);
-//			LOGI("Freed mag looper");
-			free(mag_data);
-			LOGI("Freed mag data");
-		}
 	}
+
+	if(stopFlag){
+		LOGI("MAG SAMPLING FINISHED");
+		magFlag = 1;
+		ASensorEventQueue_disableSensor(magQueue, magSensor);
+		LOGI("Disabled mag Sensor");
+		ASensorManager_destroyEventQueue(magSensorManager, magQueue);
+		LOGI("Freed mag manager");
+//		ALooper_release(magLooper);
+//		LOGI("Freed mag looper");
+		free(mag_data);
+		LOGI("Freed mag data");
+	}
+
 	return 1;
 }
 
 static int get_bar_events(int fd, int events, void* data){
 	ASensorEvent event;
-	while(ASensorEventQueue_getEvents(barQueue, &event, 1) >0 && (barSampleCount < BAR_LIMIT)){
+	while(ASensorEventQueue_getEvents(barQueue, &event, 1) >0 && !stopFlag){
 		if(event.type == 6){
 			//LOGI("[%d][%f][%f][%f][%f]", gyrSampleCount, ((double)(event.timestamp-lastGyrTime))/1000000000.0, event.acceleration.x,event.acceleration.y,event.acceleration.z);
 			fprintf(barF, "%lld; %f; %f;\n", event.timestamp, ((double)(event.timestamp-lastBarTime))/1000000000.0, event.pressure);
@@ -290,36 +304,36 @@ static int get_bar_events(int fd, int events, void* data){
 			barSampleCount++;
 		}
 
-		if(barSampleCount == BAR_LIMIT){
-			LOGI("BAR SAMPLING FINISHED");
-			fclose(barF);
-			barFlag = 1;
-			ASensorEventQueue_disableSensor(barQueue, barSensor);
-			LOGI("Disabled bar Sensor");
-			ASensorManager_destroyEventQueue(barSensorManager, barQueue);
-			LOGI("Freed bar manager");
-//			ALooper_release(barLooper);
-//			LOGI("Freed bar looper");
-			free(bar_data);
-			LOGI("Freed bar data");
 		}
+
+	if(stopFlag){
+		LOGI("BAR SAMPLING FINISHED");
+		barFlag = 1;
+		ASensorEventQueue_disableSensor(barQueue, barSensor);
+		LOGI("Disabled bar Sensor");
+		ASensorManager_destroyEventQueue(barSensorManager, barQueue);
+		LOGI("Freed bar manager");
+//		ALooper_release(barLooper);
+//		LOGI("Freed bar looper");
+		free(bar_data);
+		LOGI("Freed bar data");
 	}
 	return 1;
 }
 
-void *print_message_function()
+void *input_gps()
 {
 	int ctr = 0;
+	FILE *gpsF;
+	gpsF= fopen("/sdcard/gps-samp.csv", "w");
 
-	while (1){
-
+	while (!stopFlag){
 		pthread_mutex_lock(&mutex);
-		LOGI("call back %d", ctr++);
-		LOGI("%lld", timeshit);
+		fprintf(gpsF, "%lf; %lf; %lf;\n", latC, lonC, altC);
+
 		pthread_mutex_unlock(&mutex);
-		sleep(4);
+		sleep(1);
 	}
+	LOGI("GPS STOP");
+	fclose(gpsF);
 }
-
-
-
