@@ -41,7 +41,7 @@ int stopFlag = 0;
 double latC = 0;
 double lonC = 0;
 double altC = 0;
-
+float accuracyC = 0;
 void *acc_data;
 void *gyr_data;
 void *mag_data;
@@ -80,24 +80,19 @@ pthread_t thread;
 
 char *message = "Whatevah, whatevah, I do what I want.";
 
-JNIEXPORT jstring JNICALL Java_com_Threading_ThreadActivity_goThread
-  (JNIEnv *env, jclass class){
-	LOGI("Sensor Data Start");
-	return (*env)->NewStringUTF(env, "Acquiring Sensor Data");
-}
-
 JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_stop
   (JNIEnv *env, jclass class){
 	stopFlag = 1;
 }
 
 JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_setGps
- (JNIEnv *env, jclass class, jdouble lat, jdouble lon, jdouble alt){
+ (JNIEnv *env, jclass class, jdouble lat, jdouble lon, jdouble alt, jfloat accuracy){
 	pthread_mutex_lock(&mutex);
 	//LOGI("GPS Locked on Mother Fucker");
 	latC = lat;
 	lonC = lon;
 	altC = alt;
+	accuracyC = accuracy;
 	pthread_mutex_unlock(&mutex);
 }
 
@@ -198,17 +193,6 @@ JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_threader
 
 	LOGI("sensorValue() - Start");
 
-	/*while(!accFlag || !gyrFlag || !magFlag || !barFlag){
-
-	}
-JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_setGps
- (JNIEnv *env, jclass class, jlong timeM){
-
-	pthread_create(&thread, NULL, print_message_function, (long*) timeM);
-
-
-}
-	return 1;*/
 }
 
 static int get_acc_events(int fd, int events, void* data){
@@ -218,7 +202,6 @@ static int get_acc_events(int fd, int events, void* data){
 		if(event.type == ASENSOR_TYPE_ACCELEROMETER){
 			//LOGI("[%d][%f][%f][%f][%f]", accSampleCount, ((double)(event.timestamp-lastAccTime))/1000000000.0, event.acceleration.x,event.acceleration.y,event.acceleration.z);
 			fprintf(accF, "%lld; %f; %f; %f; %f;\n", event.timestamp, ((double)(event.timestamp-lastAccTime))/1000000000.0, event.acceleration.azimuth,event.acceleration.pitch,event.acceleration.roll);
-			fclose(accF);
 			lastAccTime = event.timestamp;
 			accSampleCount++;
 		}
@@ -231,8 +214,8 @@ static int get_acc_events(int fd, int events, void* data){
 		LOGI("Disabled Acc Sensor");
 		ASensorManager_destroyEventQueue(accSensorManager, accQueue);
 		LOGI("Freed acc manager");
-//			ALooper_release(accLooper);
-//			LOGI("Freed acc looper");
+//		ALooper_release(accLooper);
+//		LOGI("Freed acc looper");
 		free(acc_data);
 		LOGI("Freed acc data");
 	}
@@ -245,7 +228,6 @@ static int get_gyr_events(int fd, int events, void* data){
 		if(event.type == ASENSOR_TYPE_GYROSCOPE){
 			//LOGI("[%d][%f][%f][%f][%f]", gyrSampleCount, ((double)(event.timestamp-lastGyrTime))/1000000000.0, event.acceleration.x,event.acceleration.y,event.acceleration.z);
 			fprintf(gyrF, "%lld; %f; %f; %f; %f;\n", event.timestamp, ((double)(event.timestamp-lastGyrTime))/1000000000.0, event.acceleration.azimuth,event.acceleration.pitch,event.acceleration.roll);
-			fclose(gyrF);
 			lastGyrTime = event.timestamp;
 			gyrSampleCount++;
 		}
@@ -272,7 +254,6 @@ static int get_mag_events(int fd, int events, void* data){
 		if(event.type == ASENSOR_TYPE_MAGNETIC_FIELD){
 			//LOGI("[%d][%f][%f][%f][%f]", gyrSampleCount, ((double)(event.timestamp-lastGyrTime))/1000000000.0, event.acceleration.x,event.acceleration.y,event.acceleration.z);
 			fprintf(magF, "%lld; %f; %f; %f; %f;\n", event.timestamp, ((double)(event.timestamp-lastMagTime))/1000000000.0, event.magnetic.x,event.magnetic.y,event.magnetic.z);
-			fclose(magF);
 			lastMagTime = event.timestamp;
 			magSampleCount++;
 		}
@@ -329,7 +310,7 @@ void *input_gps()
 
 	while (!stopFlag){
 		pthread_mutex_lock(&mutex);
-		fprintf(gpsF, "%lf; %lf; %lf;\n", latC, lonC, altC);
+		fprintf(gpsF, "%lf; %lf; %lf; %f\n", latC, lonC, altC, accuracyC);
 
 		pthread_mutex_unlock(&mutex);
 		sleep(1);
