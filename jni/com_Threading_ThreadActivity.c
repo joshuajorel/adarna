@@ -8,15 +8,13 @@
 #include <time.h>
 #include <pthread.h>
 
-#define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "TestJNIActivity", __VA_ARGS__))
+#define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "ADARNA-SensorAquisitionMod", __VA_ARGS__))
 #define LOOPER_ID 1
-#define SAMP_PER_SEC 100
-#define SAMPLE_LIMIT 1024
 #define ACC_SAMP_FREQ 100
 #define GYR_SAMP_FREQ 100
 #define MAG_SAMP_FREQ 100
 #define BAR_SAMP_FREQ 5
-#define BAR_LIMIT 60
+
 
 int64_t lastAccTime = 0;
 int64_t lastGyrTime = 0;
@@ -114,6 +112,8 @@ JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_threader
 	gyrF = fopen("/sdcard/gyr-samp.csv", "w");
 	magF = fopen("/sdcard/mag-samp.csv", "w");
 	barF = fopen("/sdcard/bar-samp.csv", "w");
+
+
 
 
 	if (accF == NULL) {
@@ -218,6 +218,7 @@ static int get_acc_events(int fd, int events, void* data){
 //		LOGI("Freed acc looper");
 		free(acc_data);
 		LOGI("Freed acc data");
+		fclose(accF);
 	}
 	return 1;
 }
@@ -244,6 +245,7 @@ static int get_gyr_events(int fd, int events, void* data){
 	//	LOGI("Freed gyr looper");
 		free(gyr_data);
 		LOGI("Freed gyr data");
+		fclose(gyrF);
 	}
 	return 1;
 }
@@ -270,6 +272,7 @@ static int get_mag_events(int fd, int events, void* data){
 //		LOGI("Freed mag looper");
 		free(mag_data);
 		LOGI("Freed mag data");
+		fclose(magF);
 	}
 
 	return 1;
@@ -298,6 +301,7 @@ static int get_bar_events(int fd, int events, void* data){
 //		LOGI("Freed bar looper");
 		free(bar_data);
 		LOGI("Freed bar data");
+		fclose(barF);
 	}
 	return 1;
 }
