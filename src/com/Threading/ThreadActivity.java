@@ -2,6 +2,7 @@ package com.Threading;
 
 import android.app.Activity;
 import android.content.Context;
+import android.location.GpsStatus;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -16,10 +17,9 @@ import android.widget.Button;
 import android.widget.TextView;
 import java.lang.System;
 
-public class ThreadActivity extends Activity{
+public class ThreadActivity extends Activity implements Handler.Callback{
 	Button goBtn, stopBtn;
-	TextView text;
-	private TextView tv;
+	private TextView text;
 	private LocationManager lm;
 	private final int UPDATE_TEXT = 1;
 	private boolean gpsflag = true;
@@ -44,14 +44,7 @@ public class ThreadActivity extends Activity{
 		stopBtn = (Button) findViewById(R.id.stopBtn);
 		text = (TextView) findViewById(R.id.text);
 		
-		updateTextView = new Handler(){
-			@Override
-			public void handleMessage(Message msg){
-				if(msg.what == UPDATE_TEXT){
-					tv.setText((String)msg.obj);
-				}
-			}
-		};
+		updateTextView = new Handler(this);
 		
 		goBtn.setOnClickListener(new View.OnClickListener() {
 
@@ -63,7 +56,7 @@ public class ThreadActivity extends Activity{
 					gpsflag = false;
 				}
 					gpsThread.startGPS();
-					callThreader();
+//					callThreader();
 
 				//setGps();
 
@@ -86,9 +79,7 @@ public class ThreadActivity extends Activity{
 	
 	
 	
-	private class GPSThread extends Thread implements LocationListener {
-		
-
+	private class GPSThread extends Thread implements LocationListener, GpsStatus.Listener {
 	
 		private Context mContext;
 		private LocationManager lm;
@@ -96,6 +87,7 @@ public class ThreadActivity extends Activity{
 		public GPSThread(Context mCont){
 			mContext = mCont;
 			lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+			lm.addGpsStatusListener(this);
 			Log.i("Constructor", "Constructed");
 			System.out.println("hello world");
 		}
@@ -127,25 +119,37 @@ public class ThreadActivity extends Activity{
 		}
 		
 		public void onProviderDisabled(String arg0) {
-			
 		}
 
 		public void onProviderEnabled(String arg0) {
-			
-			
 		}
 
 		public void onStatusChanged(String arg0, int arg1, Bundle arg2) {
-			Log.i("GPS", "status "+ arg0);
-			if(arg1 == 2){
-				Log.i("GPS Start", "Calling threader");
-				String myShit = new String("Sensor Acquisition Start");
-				updateTextView.obtainMessage(UPDATE_TEXT, myShit).sendToTarget();
-			}
+			
 		}
 		
 		public void endGPS() {
 			lm.removeUpdates(this);
 		}
+
+		public void onGpsStatusChanged(int event) {
+			Log.i("GPS", "status "+ event);
+			if(event == GpsStatus.GPS_EVENT_FIRST_FIX){
+				Log.i("GPS Start", "Calling threader");
+				String myShit = new String("Sensor Acquisition Start");
+				updateTextView.obtainMessage(UPDATE_TEXT, myShit).sendToTarget();
+			}
+		}
+	}
+
+
+
+	public boolean handleMessage(Message msg) {
+		if(msg.what == UPDATE_TEXT){
+			text.setText((String)msg.obj);
+			callThreader();
+			return true;
+		}
+		return false;
 	}
 }
