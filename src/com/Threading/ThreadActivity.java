@@ -25,7 +25,6 @@ public class ThreadActivity extends Activity implements Handler.Callback{
 	private boolean gpsflag = true;
 	private Handler updateTextView;
 	private static native void threader();
-	//private static native void setGps(double lat, double lon, double alt);
 	private static native void setGps(double lat, double lon, double alt, float accuracy);
 	private static native void stop();
 
@@ -38,7 +37,7 @@ public class ThreadActivity extends Activity implements Handler.Callback{
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
-		gpsThread = new GPSThread(this);
+		//gpsThread = new GPSThread(this);
 		
 		goBtn = (Button) findViewById(R.id.goBtn);
 		stopBtn = (Button) findViewById(R.id.stopBtn);
@@ -50,13 +49,12 @@ public class ThreadActivity extends Activity implements Handler.Callback{
 
 			public void onClick(View v) {
 				
-				//threader();
-				if(gpsflag) {
-					gpsThread.start();
-					gpsflag = false;
-				}
-					gpsThread.startGPS();
-					//callThreader();
+				callThreader();
+//				if(gpsflag) {
+//					gpsThread.start();
+//					gpsflag = false;
+//				}
+//					gpsThread.startGPS();
 
 				//setGps();
 
@@ -68,7 +66,7 @@ public class ThreadActivity extends Activity implements Handler.Callback{
 			public void onClick(View v) {
 				text.setText("Sensor Acquisition Stopped");
 				stop();
-				gpsThread.endGPS();
+//				gpsThread.endGPS();
 			}
 		});
 

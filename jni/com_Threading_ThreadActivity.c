@@ -21,15 +21,24 @@ int64_t lastGyrTime = 0;
 int64_t lastMagTime = 0;
 int64_t lastBarTime = 0;
 int64_t lastGpsTime = 0;
+
+int64_t accT = 0;
+int64_t gyrT = 0;
+int64_t magT = 0;
+int64_t barT = 0;
+int64_t gpsT = 0;
+
+struct timespec accTime;
+struct timespec gyrTime;
+struct timespec magTime;
+struct timespec barTime;
+struct timespec gpsTime;
+
 FILE* accF;
 FILE* gyrF;
 FILE* magF;
 FILE* barF;
 
-int accSampleCount = 0;
-int gyrSampleCount = 0;
-int magSampleCount = 0;
-int barSampleCount = 0;
 int accFlag = 0;
 int gyrFlag = 0;
 int magFlag = 0;
@@ -39,6 +48,8 @@ int stopFlag = 0;
 double latC = 0;
 double lonC = 0;
 double altC = 0;
+
+
 float accuracyC = 0;
 void *acc_data;
 void *gyr_data;
@@ -86,7 +97,7 @@ JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_stop
 JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_setGps
  (JNIEnv *env, jclass class, jdouble lat, jdouble lon, jdouble alt, jfloat accuracy){
 	pthread_mutex_lock(&mutex);
-	//LOGI("GPS Locked on Mother Fucker");
+	LOGI("GPS Locked on Mother Fucker");
 	latC = lat;
 	lonC = lon;
 	altC = alt;
@@ -107,30 +118,31 @@ JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_threader
 	mag_data = malloc(1000);
 	bar_data = malloc(1000);
 
-
 	accF = fopen("/sdcard/acc-samp.csv", "w");
 	gyrF = fopen("/sdcard/gyr-samp.csv", "w");
 	magF = fopen("/sdcard/mag-samp.csv", "w");
 	barF = fopen("/sdcard/bar-samp.csv", "w");
 
+	fclose(accF);
+	fclose(gyrF);
+	fclose(magF);
+	fclose(barF);
 
-
-
-	if (accF == NULL) {
-		LOGI(" ERROR : acc does not exist");
-	}
-
-	if (gyrF == NULL) {
-		LOGI(" ERROR : gyr does not exist");
-	}
-
-	if (magF == NULL) {
-		LOGI(" ERROR : mag does not exist");
-	}
-
-	if (barF == NULL) {
-		LOGI(" ERROR : bar does not exist");
-	}
+//	if (accF == NULL) {
+//		LOGI(" ERROR : acc does not exist");
+//	}
+//
+//	if (gyrF == NULL) {
+//		LOGI(" ERROR : gyr does not exist");
+//	}
+//
+//	if (magF == NULL) {
+//		LOGI(" ERROR : mag does not exist");
+//	}
+//
+//	if (barF == NULL) {
+//		LOGI(" ERROR : bar does not exist");
+//	}
 
 	LOGI("sensorValue() - ALooper_forThread");
 
@@ -198,12 +210,14 @@ JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_threader
 static int get_acc_events(int fd, int events, void* data){
 	ASensorEvent event;
 	while(ASensorEventQueue_getEvents(accQueue, &event, 1) >0 && !stopFlag){
-		//(accSampleCount < SAMPLE_LIMIT)
 		if(event.type == ASENSOR_TYPE_ACCELEROMETER){
 			//LOGI("[%d][%f][%f][%f][%f]", accSampleCount, ((double)(event.timestamp-lastAccTime))/1000000000.0, event.acceleration.x,event.acceleration.y,event.acceleration.z);
-			fprintf(accF, "%lld; %f; %f; %f; %f;\n", event.timestamp, ((double)(event.timestamp-lastAccTime))/1000000000.0, event.acceleration.azimuth,event.acceleration.pitch,event.acceleration.roll);
-			lastAccTime = event.timestamp;
-			accSampleCount++;
+			accF = fopen("/sdcard/acc-samp.csv", "a");
+			clock_gettime(CLOCK_MONOTONIC, &accTime);
+			accT = 1000000000.0*accTime.tv_sec + (double)accTime.tv_nsec;
+			fprintf(accF, "%lld; %f; %f; %f; %f;\n", accT, ((double)(accT-lastAccTime))/1000000000.0, event.acceleration.x,event.acceleration.y,event.acceleration.z);
+			lastAccTime = accT;
+			fclose(accF);
 		}
 	}
 
@@ -218,7 +232,6 @@ static int get_acc_events(int fd, int events, void* data){
 //		LOGI("Freed acc looper");
 		free(acc_data);
 		LOGI("Freed acc data");
-		fclose(accF);
 	}
 	return 1;
 }
@@ -228,9 +241,12 @@ static int get_gyr_events(int fd, int events, void* data){
 	while(ASensorEventQueue_getEvents(gyrQueue, &event, 1) >0 && !stopFlag){
 		if(event.type == ASENSOR_TYPE_GYROSCOPE){
 			//LOGI("[%d][%f][%f][%f][%f]", gyrSampleCount, ((double)(event.timestamp-lastGyrTime))/1000000000.0, event.acceleration.x,event.acceleration.y,event.acceleration.z);
-			fprintf(gyrF, "%lld; %f; %f; %f; %f;\n", event.timestamp, ((double)(event.timestamp-lastGyrTime))/1000000000.0, event.acceleration.azimuth,event.acceleration.pitch,event.acceleration.roll);
-			lastGyrTime = event.timestamp;
-			gyrSampleCount++;
+			gyrF = fopen("/sdcard/gyr-samp.csv", "a");
+			clock_gettime(CLOCK_MONOTONIC, &gyrTime);
+			gyrT = 1000000000.0*gyrTime.tv_sec + (double)gyrTime.tv_nsec;
+			fprintf(gyrF, "%lld; %f; %f; %f; %f;\n", gyrT, ((double)(gyrT-lastGyrTime))/1000000000.0, event.acceleration.azimuth,event.acceleration.pitch,event.acceleration.roll);
+			lastGyrTime = gyrT;
+			fclose(gyrF);
 		}
 	}
 
@@ -245,7 +261,6 @@ static int get_gyr_events(int fd, int events, void* data){
 	//	LOGI("Freed gyr looper");
 		free(gyr_data);
 		LOGI("Freed gyr data");
-		fclose(gyrF);
 	}
 	return 1;
 }
@@ -255,9 +270,12 @@ static int get_mag_events(int fd, int events, void* data){
 	while(ASensorEventQueue_getEvents(magQueue, &event, 1) >0 && !stopFlag){
 		if(event.type == ASENSOR_TYPE_MAGNETIC_FIELD){
 			//LOGI("[%d][%f][%f][%f][%f]", gyrSampleCount, ((double)(event.timestamp-lastGyrTime))/1000000000.0, event.acceleration.x,event.acceleration.y,event.acceleration.z);
-			fprintf(magF, "%lld; %f; %f; %f; %f;\n", event.timestamp, ((double)(event.timestamp-lastMagTime))/1000000000.0, event.magnetic.x,event.magnetic.y,event.magnetic.z);
-			lastMagTime = event.timestamp;
-			magSampleCount++;
+			magF = fopen("/sdcard/mag-samp.csv", "a");
+			clock_gettime(CLOCK_MONOTONIC, &magTime);
+			magT = 1000000000.0*magTime.tv_sec + (double)magTime.tv_nsec;
+			fprintf(magF, "%lld; %f; %f; %f; %f;\n", magT, ((double)(magT-lastMagTime))/1000000000.0, event.magnetic.x,event.magnetic.y,event.magnetic.z);
+			lastMagTime = magT;
+			fclose(magF);
 		}
 	}
 
@@ -283,9 +301,13 @@ static int get_bar_events(int fd, int events, void* data){
 	while(ASensorEventQueue_getEvents(barQueue, &event, 1) >0 && !stopFlag){
 		if(event.type == 6){
 			//LOGI("[%d][%f][%f][%f][%f]", gyrSampleCount, ((double)(event.timestamp-lastGyrTime))/1000000000.0, event.acceleration.x,event.acceleration.y,event.acceleration.z);
-			fprintf(barF, "%lld; %f; %f;\n", event.timestamp, ((double)(event.timestamp-lastBarTime))/1000000000.0, event.pressure);
-			lastBarTime = event.timestamp;
-			barSampleCount++;
+			barF = fopen("/sdcard/bar-samp.csv", "a");
+			clock_gettime(CLOCK_MONOTONIC, &barTime);
+			barT = 1000000000.0*barTime.tv_sec + (double)barTime.tv_nsec;
+			fprintf(barF, "%lld; %f; %f;\n", barT, ((double)(barT-lastBarTime))/1000000000.0, event.pressure);
+			lastBarTime = barT;
+			fclose(barF);
+
 		}
 
 		}
@@ -301,7 +323,6 @@ static int get_bar_events(int fd, int events, void* data){
 //		LOGI("Freed bar looper");
 		free(bar_data);
 		LOGI("Freed bar data");
-		fclose(barF);
 	}
 	return 1;
 }
@@ -310,15 +331,21 @@ void *input_gps()
 {
 	int ctr = 0;
 	FILE *gpsF;
+
 	gpsF= fopen("/sdcard/gps-samp.csv", "w");
+	fclose(gpsF);
 
 	while (!stopFlag){
 		pthread_mutex_lock(&mutex);
-		fprintf(gpsF, "%lf; %lf; %lf; %f\n", latC, lonC, altC, accuracyC);
-
+		gpsF= fopen("/sdcard/gps-samp.csv", "a");
+		clock_gettime(CLOCK_MONOTONIC, &gpsTime);
+		gpsT = 1000000000.0*gpsTime.tv_sec + (double)gpsTime.tv_nsec;
+		fprintf(gpsF, "%lld; %f; %lf; %lf; %lf; %f\n", gpsT, ((double)(gpsT-lastGpsTime))/1000000000.0, latC, lonC, altC, accuracyC);
+		lastGpsTime = gpsT;
+		fclose(gpsF);
 		pthread_mutex_unlock(&mutex);
 		sleep(1);
 	}
 	LOGI("GPS STOP");
-	fclose(gpsF);
+
 }
