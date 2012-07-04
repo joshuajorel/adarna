@@ -37,7 +37,7 @@ public class ThreadActivity extends Activity implements Handler.Callback{
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
-		//gpsThread = new GPSThread(this);
+		gpsThread = new GPSThread(this);
 		
 		goBtn = (Button) findViewById(R.id.goBtn);
 		stopBtn = (Button) findViewById(R.id.stopBtn);

@@ -108,11 +108,6 @@ JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_setGps
 JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_threader
   (JNIEnv *env, jclass class){
 	pthread_create(&thread, NULL, input_gps, NULL);
-	ASensorEvent accEvent;
-	ASensorEvent gyrEvent;
-	ASensorEvent magEvent;
-	ASensorEvent barEvent;
-
 	acc_data = malloc(1000);
 	gyr_data = malloc(1000);
 	mag_data = malloc(1000);
@@ -172,7 +167,7 @@ JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_threader
 	magSensorManager = ASensorManager_getInstance();
 	barSensorManager = ASensorManager_getInstance();
 
-	accSensor = ASensorManager_getDefaultSensor(accSensorManager, ASENSOR_TYPE_ACCELEROMETER);
+	accSensor = ASensorManager_getDefaultSensor(accSensorManager, 10);
 	gyrSensor = ASensorManager_getDefaultSensor(gyrSensorManager, ASENSOR_TYPE_GYROSCOPE);
 	magSensor = ASensorManager_getDefaultSensor(magSensorManager, ASENSOR_TYPE_MAGNETIC_FIELD);
 	barSensor = ASensorManager_getDefaultSensor(barSensorManager, 6);
@@ -209,14 +204,17 @@ JNIEXPORT void JNICALL Java_com_Threading_ThreadActivity_threader
 
 static int get_acc_events(int fd, int events, void* data){
 	ASensorEvent event;
+	clock_gettime(CLOCK_MONOTONIC, &accTime);
+	accT = 1000000000.0*accTime.tv_sec + accTime.tv_nsec;
+	LOGI("%lld", accT);
 	while(ASensorEventQueue_getEvents(accQueue, &event, 1) >0 && !stopFlag){
-		if(event.type == ASENSOR_TYPE_ACCELEROMETER){
+		if(event.type == 10){
 			//LOGI("[%d][%f][%f][%f][%f]", accSampleCount, ((double)(event.timestamp-lastAccTime))/1000000000.0, event.acceleration.x,event.acceleration.y,event.acceleration.z);
 			accF = fopen("/sdcard/acc-samp.csv", "a");
-			clock_gettime(CLOCK_MONOTONIC, &accTime);
-			accT = 1000000000.0*accTime.tv_sec + (double)accTime.tv_nsec;
-			fprintf(accF, "%lld; %f; %f; %f; %f;\n", accT, ((double)(accT-lastAccTime))/1000000000.0, event.acceleration.x,event.acceleration.y,event.acceleration.z);
-			lastAccTime = accT;
+			accT += event.timestamp - lastAccTime;
+			fprintf(accF, "%lld; %f; %f; %f; %f; %lld;\n", event.timestamp, ((double)(event.timestamp-lastAccTime))/1000000000.0,
+					event.acceleration.x,event.acceleration.y,event.acceleration.z, accT);
+			lastAccTime = event.timestamp;
 			fclose(accF);
 		}
 	}
@@ -242,10 +240,8 @@ static int get_gyr_events(int fd, int events, void* data){
 		if(event.type == ASENSOR_TYPE_GYROSCOPE){
 			//LOGI("[%d][%f][%f][%f][%f]", gyrSampleCount, ((double)(event.timestamp-lastGyrTime))/1000000000.0, event.acceleration.x,event.acceleration.y,event.acceleration.z);
 			gyrF = fopen("/sdcard/gyr-samp.csv", "a");
-			clock_gettime(CLOCK_MONOTONIC, &gyrTime);
-			gyrT = 1000000000.0*gyrTime.tv_sec + (double)gyrTime.tv_nsec;
-			fprintf(gyrF, "%lld; %f; %f; %f; %f;\n", gyrT, ((double)(gyrT-lastGyrTime))/1000000000.0, event.acceleration.azimuth,event.acceleration.pitch,event.acceleration.roll);
-			lastGyrTime = gyrT;
+			fprintf(gyrF, "%lld; %f; %f; %f; %f;\n", event.timestamp, ((double)(event.timestamp-lastGyrTime))/1000000000.0, event.acceleration.azimuth,event.acceleration.pitch,event.acceleration.roll);
+			lastGyrTime = event.timestamp;
 			fclose(gyrF);
 		}
 	}
@@ -271,10 +267,8 @@ static int get_mag_events(int fd, int events, void* data){
 		if(event.type == ASENSOR_TYPE_MAGNETIC_FIELD){
 			//LOGI("[%d][%f][%f][%f][%f]", gyrSampleCount, ((double)(event.timestamp-lastGyrTime))/1000000000.0, event.acceleration.x,event.acceleration.y,event.acceleration.z);
 			magF = fopen("/sdcard/mag-samp.csv", "a");
-			clock_gettime(CLOCK_MONOTONIC, &magTime);
-			magT = 1000000000.0*magTime.tv_sec + (double)magTime.tv_nsec;
-			fprintf(magF, "%lld; %f; %f; %f; %f;\n", magT, ((double)(magT-lastMagTime))/1000000000.0, event.magnetic.x,event.magnetic.y,event.magnetic.z);
-			lastMagTime = magT;
+			fprintf(magF, "%lld; %f; %f; %f; %f;\n", event.timestamp, ((double)(event.timestamp-lastMagTime))/1000000000.0, event.magnetic.x,event.magnetic.y,event.magnetic.z);
+			lastMagTime = event.timestamp;
 			fclose(magF);
 		}
 	}
@@ -302,10 +296,8 @@ static int get_bar_events(int fd, int events, void* data){
 		if(event.type == 6){
 			//LOGI("[%d][%f][%f][%f][%f]", gyrSampleCount, ((double)(event.timestamp-lastGyrTime))/1000000000.0, event.acceleration.x,event.acceleration.y,event.acceleration.z);
 			barF = fopen("/sdcard/bar-samp.csv", "a");
-			clock_gettime(CLOCK_MONOTONIC, &barTime);
-			barT = 1000000000.0*barTime.tv_sec + (double)barTime.tv_nsec;
-			fprintf(barF, "%lld; %f; %f;\n", barT, ((double)(barT-lastBarTime))/1000000000.0, event.pressure);
-			lastBarTime = barT;
+			fprintf(barF, "%lld; %f; %f;\n", event.timestamp, ((double)(event.timestamp-lastBarTime))/1000000000.0, event.pressure);
+			lastBarTime = event.timestamp;
 			fclose(barF);
 
 		}
@@ -336,16 +328,15 @@ void *input_gps()
 	fclose(gpsF);
 
 	while (!stopFlag){
-		pthread_mutex_lock(&mutex);
 		gpsF= fopen("/sdcard/gps-samp.csv", "a");
+		pthread_mutex_lock(&mutex);
 		clock_gettime(CLOCK_MONOTONIC, &gpsTime);
-		gpsT = 1000000000.0*gpsTime.tv_sec + (double)gpsTime.tv_nsec;
-		fprintf(gpsF, "%lld; %f; %lf; %lf; %lf; %f\n", gpsT, ((double)(gpsT-lastGpsTime))/1000000000.0, latC, lonC, altC, accuracyC);
+		gpsT = 1000000000.0*gpsTime.tv_sec+gpsTime.tv_nsec;
+		fprintf(gpsF, "%lld; %f; %lf; %lf; %lf; %f\n", gpsT, ((double)gpsT-lastGpsTime)/1000000000.0, latC, lonC, altC, accuracyC);
 		lastGpsTime = gpsT;
-		fclose(gpsF);
 		pthread_mutex_unlock(&mutex);
+		fclose(gpsF);
 		sleep(1);
 	}
 	LOGI("GPS STOP");
-
 }
